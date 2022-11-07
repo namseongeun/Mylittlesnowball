@@ -25,7 +25,7 @@ spring:
 #    password: ssafy
 
     # ec2 DB에 연결
-    url: jdbc:mysql://k7a601.p.ssafy.io:3306/snowball?useSSL=false&useUnicode=true&autoReconnect=true&characterEncoding=utf8&allowMultiQueries=true&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://k7a601.p.ssafy.io:3306/snowball?useSSL=false&useUnicode=true&autoReconnect=true&characterEncoding=utf8&allowMultiQueries=true&serverTimezone=UTC
     username: ssafy
     password: mylittlesnowball601!
 
@@ -52,8 +52,7 @@ spring:
       host: k7a601.p.ssafy.io
       port: 27017
       database: snowball
-      authentication-database: snowball
-
+      authentication-database: admin
 #     uri: mongodb://ssafy:mylittlesnowball601!@k7a601.p.ssafy.io:27017/snowball
 
       # local setting
