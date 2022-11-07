@@ -12,7 +12,6 @@ public class GlobalControllerAdvice {
     @ExceptionHandler(value = Exception.class)
     public ResponseEntity exception(Exception e) {
         String message = new Gson().toJson(e.getMessage());
-        System.out.println("error message: " + message);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(message);
     }
 }
