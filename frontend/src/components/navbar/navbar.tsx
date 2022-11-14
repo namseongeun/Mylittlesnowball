@@ -1,6 +1,5 @@
-import * as React from 'react';
+import react, { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { useEffect } from 'react';
 import Grid from '@mui/material/Grid';
 import '../../index.css'
 import styles from "./navbar.module.css"
@@ -11,7 +10,7 @@ import Avatar from '@mui/material/Avatar'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 
-const Navbar= () => {
+export function Navbar() {
   // 현재 페이지 확인
   const router = useNavigate();
   let location = useLocation();
@@ -23,8 +22,7 @@ const Navbar= () => {
     alert('뒤로가기')
   }
 
-  // console.log(router.pathname);
-  const [nowPage, setNowPage] = React.useState(' ');
+  const [nowPage, setNowPage] = useState(' ');
 
   useEffect(() => {
     if (location.pathname === '/collection') {
@@ -33,11 +31,14 @@ const Navbar= () => {
       setNowPage('방명록')
     } else if (location.pathname === '/custommain/:userid') {
       setNowPage('나의 스노우볼')
+    } else if (location.pathname === '/welcome') {
+      setNowPage('선물하기')
+    } else if (location.pathname === '/setnickname') {
+      setNowPage('닉네임 설정하기')
     } else {
       setNowPage('나의 친구 목록')
     }
-  }, []);
-
+  });
 
   return (
     <Grid container>   
@@ -60,5 +61,3 @@ const Navbar= () => {
     </Grid>
   )
 }
-
-export default Navbar

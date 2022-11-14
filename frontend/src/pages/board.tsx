@@ -1,11 +1,12 @@
 // Systems
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSelector } from "react-redux";
 import axios from 'axios';
 import { useAppSelector } from '../app/hooks'
 
 // Other components
-import Navbar from '../components/navbar/navbar';
+import { Navbar } from '../components/navbar/navbar';
+import { API_URL } from "../switchurl"
 import styles from "./board.module.css"
 
 // MUI
@@ -20,7 +21,22 @@ import EditIcon from '@mui/icons-material/Edit';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import '../assets/fonts/font.css';
 import ClearIcon from '@mui/icons-material/Clear';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+// S3
+import ReactS3Client from 'react-aws-s3-typescript';
 // ------------------------------------------------------------------------
+
+
+// S3 Config
+const config = {
+  bucketName: '601snowball',
+  dirName: 'boardImage',
+  region: 'ap-northeast-2',
+  accessKeyId: 'AKIA3FTVN73LLSOXAIHF',
+  secretAccessKey: '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',
+}
+
+window.Buffer = window.Buffer || require("buffer").Buffer;
 
 // 버튼 색
 const theme = createTheme({
@@ -46,9 +62,10 @@ type Content = {
 
 // 이미지 업로드를 하지 않았을 경우 랜덤 이미지
 const backImageRandom = [
-'https://cdn.kormedi.com/wp-content/uploads/2020/12/gettyimages-1290149158-1-580x387.jpg',
+// 'https://cdn.kormedi.com/wp-content/uploads/2020/12/gettyimages-1290149158-1-580x387.jpg',
 'https://www.gousa.or.kr/sites/default/files/styles/16_9_770x433/public/images/hero_media_image/2016-12/Fish%20Creek%20Main%20Street%20Holiday%20Scene.jpg?h=7685ba0d&itok=pP145ocO'
 ]
+
 
 // 랜덤 이미지 함수
 function randomImage(array : any) {
@@ -56,6 +73,7 @@ function randomImage(array : any) {
   return array[random]
 }
 
+// 게시판 사진 크기
 function srcset(image: string, width: number, height: number, rows = 1, cols = 1) {
   return {
     src: `${image}?w=${width * cols}&h=${height * rows}&fit=crop&auto=format`,
@@ -78,17 +96,21 @@ const style = {
   p: 4,
 };
 
-
-
-const Board= () => {
-
+// 메인
+function Board() {
   // 유저 정보
   const nowUserId = useAppSelector((state)  => state.user.userId);
-  
-  // 메시지 배경색 랜덤 제공
+  const snowglobeId = useAppSelector((state) => state.user.snowglobeId);
+  // 토큰
+  const accessToken = localStorage.getItem("accessToken")
+  // API
+  const APIURL = API_URL()
+
+
+  // 메시지 배경 랜덤 제공
   let randomBackImage = randomImage(backImageRandom)
 
-  // 모달에 들어가는 메시지
+  // 모달에 들어가는 메시지 타입
   let [content, setContent] = useState<Content>({
     boardId: -1,
     content: " ",
@@ -107,24 +129,24 @@ const Board= () => {
   }
   const handleClose = () => setOpen(false);
 
-
-  // 1. 메시지 전송
+  // 메시지 데이터
   const [contents, setContents] = useState([]);
   const [text, setText] = useState('');
-  const [edittext, setEditText] = useState('');
+  const [imag, setImage] = useState('');
+  const [editText, setEditText] = useState('');
   const onChange = (e : any) => {
     setText(e.target.value);
-    console.log(e.target.value)
   };
-
   const onChangeEdit = (e:any) => {
     setEditText(e.target.value)
   }
+
+  // 1. 메시지 전송
   const sendMessage = () => {
-    axios.post(`http://localhost:8080/api/board/write`, {
-        "content" : text,
-        "picture" : null,
-        "snowglobeId" : 1
+    axios.post(`${APIURL}api/board/write`, {
+      "content" : text,
+      "picture" : imag,
+      "snowglobeId" : snowglobeId
     })
       .then(res => {
         console.log(res.data)
@@ -138,7 +160,8 @@ const Board= () => {
 
   // 2. 전체 메시지 조회
   const fetchMessages = () => {
-    axios.get(`http://localhost:8080/api/board/${nowUserId}/all`)
+
+    axios.get(`${APIURL}api/board/${nowUserId}/all`)
       .then((res) => {
         setContents(res.data.boardList);
         console.log('메시지 목록 = ', res.data.boardList)
@@ -150,44 +173,35 @@ const Board= () => {
 
   useEffect(() => {
     fetchMessages();
-    // const fetchMessages = async () => {
-    //   try {
-    //     const response = await axios.get(
-    //       `http://localhost:8080/api/board/${nowUserId}/all`
-    //     );
-    //     setContents(response.data.boardList);
-    //     console.log('메시지 목록 = ', response.data.boardList)
-    //   } catch (err : any) {
-    //     console.log("에러 = ", err)
-    //   }
-    // };
   }, [])
   
 
-
   // 3. 메시지 삭제
   const deleteMessage = (boardId: number) => {
-    console.log('삭제?')
-    console.log(boardId)
-    axios.delete(`http://localhost:8080/api/board/${boardId}/delete`)
+    alert('삭제 하시겠습니까?')
+    axios.delete(`${APIURL}api/board/${boardId}/delete`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    })
     .then(res => {
-      console.log(res)
       fetchMessages();
+      console.log(res)
     })
     .catch(err => {
       console.log(err)
     })
-
   }
 
   // 4. 메시지 수정
   const editMessage = (item : Content) => {
+    
     console.log("메시지 수정하기")
-    axios.put(`http://localhost:8080/api/board/modify`, {
+    axios.put(`${APIURL}api/board/modify`, {
       "boardId" : item.boardId,
       "snowglobe" : item.snowglobeId,
-      "content" : edittext,
-      "picture" : null,
+      "content" : editText,
+      "picture" : imag,
     })
     .then(res => {
       console.log(res)
@@ -198,164 +212,189 @@ const Board= () => {
     .catch(err => {
       console.log(err)
     })
-    
   }
+  const callback = useCallback(() => imag , [imag])
 
   // 5. 이미지 업로드
   const uploadImg = () => {
-    console.log("이미지 올리기")
-    fetchMessages();
+    console.log('이미지')
+  }
+
+  // 이미지 저장하기
+  
+  // 이미지 받아서 s3에 넣고 가져오기
+  const handleFileInput = async(e:any) => {
+    const data = e.target.files[0];
+    console.log("파일", data)
+    const s3 = new ReactS3Client(config);
+    const currentTime = new Date(+new Date() + 3240 * 10000).toISOString().replaceAll('T', '-').replaceAll(':', '').replaceAll('.', '-') 
+    console.log(currentTime)
+    const fileName =  `${currentTime}${nowUserId}`
+    
+    const res = await s3.uploadFile(data, fileName);
+    console.log("이미지업로드 = ", res)
+    console.log(res.location)
+    const ImagUrl:any = String(res.location)
+    console.log(ImagUrl)
+    setImage(ImagUrl)
+    callback();
   }
 
   return (
     <ThemeProvider theme={theme}>
-        <div id="container_div">
-          <Grid container id="container_div">
-            {/* 왼쪽 마진 */}
-            <Grid xs={0} sm={2} md={3} xl={4} item id="left_div"></Grid>
+      <div id="container_div">
+        <Grid container id="container_div">
+          {/* 왼쪽 마진 */}
+          <Grid xs={0} sm={2} md={3} lg={4} xl={4.5} item id="left_div"></Grid>
 
-            {/* 메인 콘텐츠 */}
-            <Grid xs={12} sm={8} md={6} xl={4} item id="main_div">
-              
-              {/*모바일 위 여백*/}
-              <div className={styles.navbar_top_margin}>
-              </div>
+          {/* 메인 콘텐츠 */}
+          <Grid xs={12} sm={8} md={6} lg={4} xl={3} item id="main_div">
+            
+            {/*모바일 위 여백*/}
+            <div className={styles.navbar_top_margin}>
+            </div>
 
-              {/* 여기는 네브바 */}
-              <div className={styles.navbar}>
-                <Navbar/>
-              </div>
+            {/* 여기는 네브바 */}
+            <div className={styles.navbar}>
+              <Navbar/>
+            </div>
 
-              {/* 여기는 게시판 메인 */}
-              <div className={styles.board_body}>
-                <Container>
-                  <Box component="div" className={styles.board_body_box}>
-                    
-                    {/* 메시지 카드 */}
-                    <ImageList
-                      className={styles.board_card}
-                      sx={{
-                        // width: 500,
-                        // height: 450,
-                        height: '70vh',
-                        transform: 'translateZ(0)',
-                      }}
-                      rowHeight={200}
-                      gap={2}
-                    >
-                      {contents.map((item:Content) => {
-                        // const cols = item.featured ? 2 : 1;
-                        // const rows = item.featured ? 2 : 1;
-
-                        return (
-                          <ImageListItem key={item.boardId} sx={{ margin: 1, borderRadius:'3px'}}>
-                            <img
-                              {...srcset(item.imageUrl ? item.imageUrl: randomBackImage, 250, 200)}
-                              alt={item.content}
-                              loading="lazy"
-                            />
-                            <ImageListItemBar
-                              sx={{
-                                background:
-                                  'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, ' +
-                                  'rgba(0,0,0,0.3) 70%, rgba(0,0,0,0) 100%)',
-
-                              }}
-                              title={item.content}
-                              position="top"
-                              actionIcon={
-                                <IconButton
-                                  onClick={() => (handleOpen(item))}
-                                  sx={{ color: 'white' }}
-                                  aria-label={`edit ${item.content}`}
-                                >
-                                  <EditIcon/>
-                                </IconButton>
-                              }
-                              actionPosition="left"
-                            />
-                            <ImageListItemBar
-                              sx={{
-                                background:
-                                  'linear-gradient(to bottom, rgba(0,0,0,0) 0%, ' +
-                                  'rgba(0,0,0,0) 0%, rgba(0,0,0,0) 0%)',
-                              }}
-                              position="bottom"
-                              actionIcon={
-                                <IconButton
-                                  onClick={()=> (deleteMessage(item.boardId))}
-                                  sx={{ color: 'white' }}
-                                  aria-label={`ClearIcon ${item.content}`}
-                                >
-                                  <ClearIcon/>
-                                </IconButton>
-                              }
-                              actionPosition="right"
-                            />
-                          </ImageListItem>
-                        );
-                      })}
-                    </ImageList>
-                  </Box>
+            {/* 여기는 게시판 메인 */}
+            <div className={styles.board_body}>
+              <Container>
+                <Box component="div" className={styles.board_body_box}>
                   
-                  {/* 메시지 수정용 모달 */}
-                  <Modal
-                    open={open}
-                    onClose={handleClose}
-                    aria-labelledby="modal-modal-title"
-                    aria-describedby="modal-modal-description"
+                  {/* 메시지 카드 */}
+                  <ImageList
+                    className={styles.board_card}
+                    sx={{
+                      // width: 500,
+                      // height: 450,
+                      height: '70vh',
+                      transform: 'translateZ(0)',
+                    }}
+                    rowHeight={200}
+                    gap={2}
                   >
-                    <Box component="div" sx={style}>
-                      <Typography id="modal-modal-title" variant="h6" component="h2">
-                        메시지를 수정하세요
-                      </Typography>
-                      <Box component="div" className={styles.input_body}>
-                      <TextField 
-                        onChange={onChangeEdit} 
-                        value={edittext} 
-                        sx={{ mr: 1 }}
-                        // label="내용을 입력하세요"
-                        // color="success"
-                        focused 
-                        placeholder={content.content}
-                        className={styles.input_box}/>
-                      <Button variant="contained" onClick={() => (uploadImg())} sx={{ mr: 1 }}><AddPhotoAlternateIcon/></Button>
-                      <Button variant="contained" onClick={() => (editMessage(content))}><SendIcon/></Button>
-                        {/* <div>
-                          <b>값: {text}</b>
-                        </div> */}
-                      </Box>
-                    </Box>
-                  </Modal>
+                    {contents.map((item:Content) => {
+                      // const cols = item.featured ? 2 : 1;
+                      // const rows = item.featured ? 2 : 1;
 
-                  {/* 글쓰기 버튼 */}
-                  <Box component="div" className={styles.input_body}>
+                      return (
+                        <ImageListItem key={item.boardId} sx={{ margin: 1 }}>
+                          <img
+                            {...srcset(item.imageUrl === '' ? randomBackImage : item.imageUrl, 250, 200)}
+                            alt={item.content}
+                            loading="lazy"
+                          />
+                          <ImageListItemBar
+                            sx={{
+                              background:
+                                'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, ' +
+                                'rgba(0,0,0,0.3) 70%, rgba(0,0,0,0) 100%)',
+                            }}
+                            title={item.content}
+                            position="top"
+                            actionIcon={
+                              <IconButton
+                                onClick={() => (handleOpen(item))}
+                                sx={{ color: 'white' }}
+                                aria-label={`edit ${item.content}`}
+                              >
+                                <EditIcon/>
+                              </IconButton>
+                            }
+                            actionPosition="left"
+                          />
+                          {/* 방명록 하단 삭제 */}
+                          <ImageListItemBar
+                            sx={{
+                              background:
+                                'linear-gradient(to bottom, rgba(0,0,0,0) 0%, ' +
+                                'rgba(0,0,0,0) 0%, rgba(0,0,0,0) 0%)',
+                            }}
+                            position="bottom"
+                            actionIcon={
+                              <IconButton
+                                onClick={()=> (deleteMessage(item.boardId))}
+                                sx={{ color: 'white' }}
+                                aria-label={`ClearIcon ${item.content}`}
+                              >
+                                <ClearIcon/>
+                              </IconButton>
+                            }
+                            actionPosition="right"
+                          />
+                        </ImageListItem>
+                      );
+                    })}
+                  </ImageList>
+                </Box>
+                
+                {/* 메시지 수정용 모달 */}
+                <Modal
+                  open={open}
+                  onClose={handleClose}
+                  aria-labelledby="modal-modal-title"
+                  aria-describedby="modal-modal-description"
+                >
+                  <Box component="div" sx={style}>
+                    <Button onClick = {()=>(handleClose())} sx={{m:0}}>
+                      <ArrowBackIcon />
+                    </Button>
+                    <Typography id="modal-modal-title" variant="h6" component="h2">
+                      메시지를 수정하세요
+                    </Typography>
+                    <Box component="div" className={styles.input_body}>
                     <TextField 
-                      onChange={onChange} 
-                      value={text} 
+                      onChange={onChangeEdit} 
+                      value={editText} 
                       sx={{ mr: 1 }}
-                      // label="내용을 입력하세요"
-                      // color="success"
                       focused 
-                      placeholder="내용을 입력하세요" 
+                      placeholder={content.content}
                       className={styles.input_box}/>
-                    <Button variant="contained" onClick={() => (uploadImg())} sx={{ mr: 1 }}><AddPhotoAlternateIcon/></Button>
-                    <Button variant="contained" onClick={() => (sendMessage())}><SendIcon/></Button>
-                      {/* <div>
-                        <b>값: {text}</b>
-                      </div> */}
+                    <Button variant="contained" onClick={() => (uploadImg())} sx={{ mr: 1 }}>                    
+                      <input type='file' 
+                        accept='image/jpg,impge/png,image/jpeg,image/gif' 
+                        name='profile_img' 
+                        onChange={e => handleFileInput(e)}
+                        >
+                      </input><AddPhotoAlternateIcon/></Button>
+                    <Button variant="contained" onClick={() => (editMessage(content))}><SendIcon/></Button>
                     </Box>
+                  </Box>
+                </Modal>
 
-                </Container>
-              </div>
-              
-            </Grid>
-            {/* 오른쪽 마진 */}
-            <Grid xs={0} sm={2} md={3} xl={4} item id="right_div"></Grid>
+                {/* 글쓰기 버튼 */}
+                <Box component="div" className={styles.input_body}>
+                  <TextField 
+                    onChange={onChange} 
+                    value={text} 
+                    sx={{ mr: 1 }}
+                    // label="내용을 입력하세요"
+                    // color="success"
+                    focused 
+                    placeholder="내용을 입력하세요" 
+                    className={styles.input_box}/>
+                  <Button variant="contained" sx={{ mr: 1 }}>
+                    <input type='file' 
+                      accept='image/jpg,impge/png,image/jpeg,image/gif' 
+                      name='profile_img' 
+                      onChange={e => handleFileInput(e)}
+                      >
+                    </input><AddPhotoAlternateIcon/></Button>
+                  <Button variant="contained" onClick={() => (sendMessage())}><SendIcon/></Button>
+                  </Box>
+              </Container>
+            </div>
+            
           </Grid>
-        </div>
-      </ThemeProvider>
-    )
+          {/* 오른쪽 마진 */}
+          <Grid xs={0} sm={2} md={3} lg={4} xl={4.5} item id="right_div"></Grid>
+        </Grid>
+      </div>
+    </ThemeProvider>
+  )
 }
 
 export default Board
