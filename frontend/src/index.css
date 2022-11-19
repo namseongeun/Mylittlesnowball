@@ -8,6 +8,7 @@ body {
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
   /* background-image : url('../public/images/backImage.png'); */
   width: 100%;
+  color: black;
   min-height: 100vh;
   min-height: -webkit-fill-available;
 }
@@ -74,9 +75,10 @@ a {
 
 .cntmenu-text {
   font-family:'MaruBuri-Regular';
-  font-weight: lighter;
-  font-size: 2em;
+  font-weight: 500;
+  font-size: 2em; 
   text-align: center;
+  color: #4E5D39;
 }
 
 .MuiSpeedDial-fab {
@@ -99,4 +101,14 @@ a {
 
 ::-webkit-scrollbar-track {
   background: rgba(216, 248, 176, 0.4); /*스크롤바 뒷 배경 색상*/
+}
+
+.font-bold{
+  font-weight: bold;
+}
+.font-{
+  font-weight: normal;
+}
+.font-{
+  font-weight: lighter;
 }
